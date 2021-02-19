@@ -1,4 +1,5 @@
 use std::{env, error::Error};
+use serde::Deserialize;
 
 
 pub struct Config {
@@ -20,6 +21,16 @@ impl Config {
     }
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+struct UsPopRecord {
+    latitude: f64,
+    longitude: f64,
+    population: Option<u64>,
+    city: String,
+    state: String,
+}
+
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     // Configure csv reader: https://docs.rs/csv/1.1.5/csv/struct.ReaderBuilder.html 
     let mut rdr = csv::ReaderBuilder::new()
@@ -34,8 +45,8 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
         println!("{:?}", header);
     }
 
-    for record in rdr.records() {
-        let parsed = record?;
+    for record in rdr.deserialize() {
+        let parsed: UsPopRecord = record?;
         println!("{:?}", parsed);
     }
 
