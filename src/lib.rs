@@ -1,4 +1,4 @@
-use std::{env, error::Error, fs::File};
+use std::{env, error::Error};
 
 
 pub struct Config {
@@ -21,8 +21,18 @@ impl Config {
 }
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
-    let file = File::open(config.filename)?;
-    let mut rdr = csv::Reader::from_reader(file);
+    // Configure csv reader: https://docs.rs/csv/1.1.5/csv/struct.ReaderBuilder.html 
+    let mut rdr = csv::ReaderBuilder::new()
+                    .delimiter(b',')
+                    .has_headers(true)
+                    .from_path(config.filename)?;
+
+
+    {
+        // scoped because of mutable borrow of reader
+        let header = rdr.headers()?;
+        println!("{:?}", header);
+    }
 
     for record in rdr.records() {
         let parsed = record?;
