@@ -1,5 +1,5 @@
 use std::{env, error::Error};
-use serde::Deserialize;
+use serde::{Serialize, Deserialize};
 
 
 pub struct Config {
@@ -21,34 +21,54 @@ impl Config {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 struct UsPopRecord {
     latitude: f64,
     longitude: f64,
+    #[serde(deserialize_with = "csv::invalid_option")]
     population: Option<u64>,
     city: String,
     state: String,
 }
 
-pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
+fn read_population_data(config: Config) -> Result<Vec<UsPopRecord>, Box<dyn Error>> {
+    let mut pop_data = Vec::new();
+
     // Configure csv reader: https://docs.rs/csv/1.1.5/csv/struct.ReaderBuilder.html 
     let mut rdr = csv::ReaderBuilder::new()
                     .delimiter(b',')
                     .has_headers(true)
                     .from_path(config.filename)?;
-
-
-    {
-        // scoped because of mutable borrow of reader
-        let header = rdr.headers()?;
-        println!("{:?}", header);
-    }
-
+    
     for record in rdr.deserialize() {
         let parsed: UsPopRecord = record?;
-        println!("{:?}", parsed);
+        pop_data.push(parsed);
     }
+
+    Ok(pop_data)
+}
+
+fn population_gt(pop_data: Vec<UsPopRecord>, gt: u64) -> Vec<UsPopRecord> {
+    let mut subpop_data: Vec<UsPopRecord> = Vec::new();
+
+    for item in pop_data {
+        let pop = match item.population {
+            Some(p) => {p},
+            None => {continue;},
+        };
+
+        if pop >= gt {
+            subpop_data.push(item);
+        }
+    }
+
+    subpop_data
+}
+
+pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
+    let pop_data = read_population_data(config)?;
+    let subpop = population_gt(pop_data, 50000);
 
     Ok(())
 }
